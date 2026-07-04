@@ -1,0 +1,79 @@
+# Laravel / App
+src/.env
+src/.env.*.local
+src/vendor/
+src/node_modules/
+src/public/hot
+src/public/storage
+src/storage/*.key
+src/storage/app/*
+!src/storage/app/public/
+src/storage/app/public/*
+!src/storage/app/public/.gitignore
+src/storage/framework/cache/*
+!src/storage/framework/cache/data/
+src/storage/framework/cache/data/*
+!src/storage/framework/cache/data/.gitignore
+src/storage/framework/sessions/*
+!src/storage/framework/sessions/.gitignore
+src/storage/framework/testing/*
+!src/storage/framework/testing/.gitignore
+src/storage/framework/views/*
+!src/storage/framework/views/.gitignore
+src/storage/logs/*
+!src/storage/logs/.gitignore
+src/bootstrap/cache/*.php
+src/.phpunit.result.cache
+src/coverage-report/
+src/coverage.xml
+src/test-report.xml
+src/infection.log
+src/infection-summary.log
+src/infection.html
+semgrep.json
+semgrep.sarif
+snyk.json
+
+# Terraform
+infrastructure/terraform/.terraform/
+infrastructure/terraform/*.tfstate
+infrastructure/terraform/*.tfstate.backup
+infrastructure/terraform/.terraform.lock.hcl
+infrastructure/terraform/terraform.tfvars
+infrastructure/terraform/override.tf
+infrastructure/terraform/crash.log
+
+# Docker
+.env
+*.env.local
+
+# IDEs
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Composer
+src/composer.phar
+
+# Generated
+src/graph.png
+
+# Python
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+.pytest_cache/
+.venv/
+venv/
+ENV/
+env/
+

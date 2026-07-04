@@ -1,0 +1,10 @@
+########################################################
+# Aegis Filter – Discord Bridge Dev Dependencies
+# Solo para testing local / CI, no se instalan en producción.
+########################################################
+
+-r requirements.txt
+
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+respx>=0.20.2

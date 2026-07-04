@@ -1,0 +1,364 @@
+########################################################
+# Aegis Filter – Pipeline único de CI
+# Pruebas estáticas + dinámicas en un solo flujo:
+#   test → mutation/sonar/semgrep/snyk → publish-pages → build-docker
+#
+# Curso: SI784 – Calidad y Pruebas de Software
+########################################################
+
+name: "Aegis Filter – CI"
+
+on:
+  push:
+    branches: ["main", "develop"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  security-events: write
+
+env:
+  PHP_VERSION: "8.2"
+
+jobs:
+  # ════════════════════════════════════════════════════
+  # 1) Pruebas unitarias/integración + cobertura
+  # ════════════════════════════════════════════════════
+  test:
+    name: "🧪 PHPUnit + Cobertura"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "🐘 Setup PHP ${{ env.PHP_VERSION }}"
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: mbstring, xml, bcmath, sqlite3, zip, gd
+          coverage: xdebug
+          tools: composer:v2
+
+      - name: "📦 Cache Composer"
+        uses: actions/cache@v4
+        with:
+          path: src/vendor
+          key: composer-${{ hashFiles('src/composer.lock') }}
+          restore-keys: composer-
+
+      - name: "⚙️ Instalar dependencias"
+        working-directory: ./src
+        run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
+
+      - name: "🔧 Preparar entorno de pruebas"
+        working-directory: ./src
+        run: |
+          cp .env.testing .env
+          php artisan key:generate --force
+
+      - name: "🧪 Ejecutar PHPUnit con cobertura"
+        working-directory: ./src
+        run: |
+          ./vendor/bin/phpunit \
+            --coverage-clover=coverage.xml \
+            --coverage-html=coverage-report \
+            --log-junit=test-report.xml \
+            --testdox
+
+      - name: "📊 Resumen de cobertura"
+        if: always()
+        working-directory: ./src
+        run: |
+          echo "### 🧪 Cobertura de pruebas" >> "$GITHUB_STEP_SUMMARY"
+          # shellcheck disable=SC2016
+          php -r '
+            $xml = @simplexml_load_file("coverage.xml");
+            if (!$xml) { echo "No se pudo leer coverage.xml\n"; exit(0); }
+            $m = $xml->project->metrics ?? null;
+            if (!$m) { echo "Sin métricas de cobertura\n"; exit(0); }
+            $covered = (int) $m["coveredstatements"];
+            $total = (int) $m["statements"];
+            $pct = $total > 0 ? round($covered / $total * 100, 2) : 0;
+            echo "- Statements cubiertos: {$covered}/{$total} ({$pct}%)\n";
+          ' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: "📤 Subir artefactos de pruebas"
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-reports
+          path: |
+            src/coverage.xml
+            src/coverage-report/
+            src/test-report.xml
+          retention-days: 14
+
+  # ════════════════════════════════════════════════════
+  # 2) Pruebas de mutación (Infection)
+  # ════════════════════════════════════════════════════
+  mutation:
+    name: "🧬 Mutation Testing (Infection)"
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "🐘 Setup PHP ${{ env.PHP_VERSION }}"
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: mbstring, xml, bcmath, sqlite3, zip, gd
+          coverage: xdebug
+          tools: composer:v2
+
+      - name: "📦 Cache Composer"
+        uses: actions/cache@v4
+        with:
+          path: src/vendor
+          key: composer-${{ hashFiles('src/composer.lock') }}
+          restore-keys: composer-
+
+      - name: "⚙️ Instalar dependencias"
+        working-directory: ./src
+        run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
+
+      - name: "🔧 Preparar entorno de pruebas"
+        working-directory: ./src
+        run: |
+          cp .env.testing .env
+          php artisan key:generate --force
+
+      - name: "🧬 Ejecutar Infection"
+        working-directory: ./src
+        run: |
+          ./vendor/bin/infection \
+            --threads=4 \
+            --min-msi=0 \
+            --min-covered-msi=0 \
+            --logger-html=infection.html \
+            --log-verbosity=default \
+            --no-interaction
+
+      - name: "📊 Resumen de mutación (MSI)"
+        if: always()
+        working-directory: ./src
+        run: |
+          echo "### 🧬 Mutation Testing" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f infection.log ]; then
+            grep -E "Mutation Score Indicator|Covered Code MSI" infection.log >> "$GITHUB_STEP_SUMMARY" || true
+          fi
+
+      - name: "📤 Subir reporte de mutación"
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mutation-report
+          path: |
+            src/infection.html
+            src/infection.log
+          retention-days: 14
+
+  # ════════════════════════════════════════════════════
+  # 3) SonarCloud
+  # ════════════════════════════════════════════════════
+  sonar:
+    name: "☁️ SonarCloud"
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "📥 Descargar reportes de pruebas"
+        uses: actions/download-artifact@v4
+        with:
+          name: test-reports
+          path: src/
+
+      - name: "☁️ SonarCloud Scan"
+        uses: SonarSource/sonarqube-scan-action@v5.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: src
+          # En "push" (solo a main) forzamos branch.name=main porque el plan
+          # gratuito de SonarCloud para repos privados solo admite analizar
+          # esa rama. En "pull_request" NO se debe fijar branch.name: la action
+          # ya detecta el contexto de PR (GITHUB_HEAD_REF/BASE_REF) y arma sus
+          # propios parámetros de decoración; combinarlo con branch.name hace
+          # que el Compute Engine de SonarCloud rechace el análisis.
+          args: >
+            -Dsonar.organization=cristhian465-sonar-cloud
+            -Dsonar.projectKey=proyecto-si784-2026-i-u1-antispam
+            -Dsonar.projectName=proyecto-si784-2026-i-u1-antispam
+            ${{ github.event_name == 'push' && '-Dsonar.branch.name=main' || '' }}
+
+  # ════════════════════════════════════════════════════
+  # 4) Semgrep (SAST) — anotaciones vía SARIF
+  # ════════════════════════════════════════════════════
+  semgrep:
+    name: "🔍 Semgrep"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "🐍 Instalar Semgrep"
+        run: pip install semgrep
+
+      - name: "🔍 Ejecutar análisis"
+        run: |
+          semgrep scan --config=auto --sarif --output=semgrep.sarif . || true
+          semgrep scan --config=auto --json --output=semgrep.json . || true
+
+      - name: "📤 Anotaciones en GH Actions (SARIF)"
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep
+
+      - name: "📤 Subir reporte de Semgrep"
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: semgrep-report
+          path: |
+            semgrep.sarif
+            semgrep.json
+          retention-days: 14
+
+  # ════════════════════════════════════════════════════
+  # 5) Snyk — se omite por completo hasta que exista el
+  #    secret SNYK_TOKEN (ver README de este workflow más
+  #    abajo en "Notas"). No bloquea el pipeline.
+  # ════════════════════════════════════════════════════
+  snyk:
+    name: "🛡️ Snyk"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "🛡️ Snyk – Análisis de vulnerabilidades"
+        working-directory: ./src
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          if [ -z "$SNYK_TOKEN" ]; then
+            echo "::notice::SNYK_TOKEN no configurado — se omite el análisis de Snyk (ver Notas al final de este workflow)."
+            exit 0
+          fi
+          npm install -g snyk
+          snyk test --severity-threshold=high --json-file-output=../snyk.json || true
+
+      - name: "📤 Subir reporte de Snyk"
+        uses: actions/upload-artifact@v4
+        if: always()
+        continue-on-error: true
+        with:
+          name: snyk-report
+          path: snyk.json
+          retention-days: 14
+
+  # ════════════════════════════════════════════════════
+  # 6) Publicar todos los reportes en GitHub Pages
+  # ════════════════════════════════════════════════════
+  publish-pages:
+    name: "📖 Publicar reportes en GH Pages"
+    runs-on: ubuntu-latest
+    needs: [test, mutation, semgrep]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: "📥 Descargar reportes de pruebas"
+        uses: actions/download-artifact@v4
+        with:
+          name: test-reports
+          path: site/coverage-raw
+
+      - name: "📥 Descargar reporte de mutación"
+        uses: actions/download-artifact@v4
+        with:
+          name: mutation-report
+          path: site/mutation
+
+      - name: "📥 Descargar reporte de Semgrep"
+        uses: actions/download-artifact@v4
+        with:
+          name: semgrep-report
+          path: site/semgrep
+
+      - name: "📥 Descargar reporte de Snyk (si corrió)"
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: snyk-report
+          path: site/snyk
+
+      - name: "🏗️ Armar sitio de reportes"
+        run: |
+          mkdir -p site/coverage
+          if [ -d site/coverage-raw/coverage-report ]; then
+            cp -r site/coverage-raw/coverage-report/. site/coverage/
+          fi
+          cat > site/index.html <<'HTML'
+          <!DOCTYPE html>
+          <html lang="es">
+          <head><meta charset="utf-8"><title>Aegis Filter – Reportes de Calidad</title></head>
+          <body>
+            <h1>Aegis Filter – Reportes de Calidad</h1>
+            <ul>
+              <li><a href="coverage/index.html">Cobertura de pruebas (PHPUnit)</a></li>
+              <li><a href="mutation/infection.html">Mutation Testing (Infection)</a></li>
+              <li><a href="semgrep/semgrep.json">Semgrep (SAST)</a></li>
+              <li><a href="snyk/snyk.json">Snyk (dependencias)</a></li>
+              <li><a href="https://sonarcloud.io/project/overview?id=proyecto-si784-2026-i-u1-antispam">SonarCloud (dashboard externo)</a></li>
+            </ul>
+          </body>
+          </html>
+          HTML
+
+      - name: "📦 Empaquetar artifact de Pages"
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: "🚀 Desplegar a GitHub Pages"
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  # ════════════════════════════════════════════════════
+  # 7) Build de la imagen Docker (solo en main)
+  # ════════════════════════════════════════════════════
+  build-docker:
+    name: "🐳 Docker Build"
+    runs-on: ubuntu-latest
+    needs: [test, sonar]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "✅ Resumen del pipeline"
+        run: |
+          echo "================================================="
+          echo "  🎉 Pipeline completado"
+          echo "  🏷️ Commit: ${{ github.sha }}"
+          echo "================================================="
+
+########################################################
+# Notas para completar la configuración (manual, una vez):
+#
+# 1. Snyk: el job "snyk" se omite hasta que exista el secret
+#    SNYK_TOKEN. Para activarlo: crear cuenta en https://snyk.io,
+#    generar un token (Account Settings > API Token), y agregarlo
+#    en GitHub: Settings > Secrets and variables > Actions >
+#    New repository secret > nombre "SNYK_TOKEN".
+#
+# 2. GitHub Pages: requiere Settings > Pages > Source =
+#    "GitHub Actions" (en vez de "Deploy from a branch").
+########################################################

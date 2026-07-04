@@ -1,0 +1,10 @@
+########################################################
+# Aegis Filter – Discord Bridge Dependencies
+# Bot de moderación Discord ↔ Aegis Core
+########################################################
+
+# ─── Discord Gateway Client ───────────────────────────
+discord.py>=2.3.0
+
+# ─── HTTP Client (comunicación con Aegis Core) ───────
+httpx>=0.24.0
