@@ -193,8 +193,8 @@ jobs:
           # que el Compute Engine de SonarCloud rechace el análisis.
           args: >
             -Dsonar.organization=cristhian465-sonar-cloud
-            -Dsonar.projectKey=proyecto-si784-2026-i-u1-antispam
-            -Dsonar.projectName=proyecto-si784-2026-i-u1-antispam
+            -Dsonar.projectKey=aegisfilter-techhub
+            -Dsonar.projectName=aegisfilter-techhub
             ${{ github.event_name == 'push' && '-Dsonar.branch.name=main' || '' }}
 
   # ════════════════════════════════════════════════════
@@ -269,7 +269,7 @@ jobs:
   publish-pages:
     name: "📖 Publicar reportes en GH Pages"
     runs-on: ubuntu-latest
-    needs: [test, mutation, semgrep]
+    needs: [test, mutation, semgrep, snyk]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment:
       name: github-pages
@@ -317,7 +317,7 @@ jobs:
               <li><a href="mutation/infection.html">Mutation Testing (Infection)</a></li>
               <li><a href="semgrep/semgrep.json">Semgrep (SAST)</a></li>
               <li><a href="snyk/snyk.json">Snyk (dependencias)</a></li>
-              <li><a href="https://sonarcloud.io/project/overview?id=proyecto-si784-2026-i-u1-antispam">SonarCloud (dashboard externo)</a></li>
+              <li><a href="https://sonarcloud.io/project/overview?id=aegisfilter-techhub">SonarCloud (dashboard externo)</a></li>
             </ul>
           </body>
           </html>
