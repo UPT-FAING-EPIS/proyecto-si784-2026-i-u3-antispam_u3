@@ -321,7 +321,8 @@ jobs:
               <li><a href="coverage/index.html">Cobertura de pruebas (PHPUnit)</a></li>
               <li><a href="mutation/infection.html">Mutation Testing (Infection)</a></li>
               <li><a href="semgrep/semgrep.html">Semgrep (SAST)</a></li>
-              <li><a href="snyk/snyk.json">Snyk (dependencias)</a></li>
+              <!-- Snyk (dependencias): oculto hasta configurar el secret SNYK_TOKEN (ver Notas al final de ci.yml), de lo contrario el job se omite y este link da 404. -->
+              <!-- <li><a href="snyk/snyk.json">Snyk (dependencias)</a></li> -->
               <li><a href="https://sonarcloud.io/project/overview?id=aegisfilter-techhub">SonarCloud (dashboard externo)</a></li>
             </ul>
           </body>
