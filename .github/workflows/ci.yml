@@ -280,6 +280,8 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
       - name: "📥 Descargar reportes de pruebas"
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
@@ -307,23 +309,78 @@ jobs:
 
       - name: "🏗️ Armar sitio de reportes"
         run: |
-          mkdir -p site/coverage
+          mkdir -p site/coverage site/docs
           if [ -d site/coverage-raw/coverage-report ]; then
             cp -r site/coverage-raw/coverage-report/. site/coverage/
           fi
-          cat > site/index.html <<'HTML'
+
+          # Copiar PDFs de docs/ (FD, anexos, presentación) al sitio publicado
+          cp docs/FD01-Informe-Factibilidad.pdf docs/FD02-Informe-Vision.pdf \
+             docs/FD03-Informe-SRS.pdf docs/FD04-Informe-SAD.pdf \
+             docs/FD05-Informe-ProyectoFinal.pdf docs/FD06-Propuesta-Proyecto.pdf \
+             docs/Diccionario-de-Datos.pdf docs/Estandar-de-Programacion.pdf \
+             docs/presentacion.pdf site/docs/ 2>/dev/null || true
+
+          # Link condicional de Snyk: solo se agrega si el job realmente generó snyk.json
+          # (se omite si no está configurado el secret SNYK_TOKEN, ver Notas al final de este workflow)
+          SNYK_LINK=""
+          if [ -f site/snyk/snyk.json ]; then
+            SNYK_LINK='<li><a href="snyk/snyk.json">Snyk (dependencias)</a></li>'
+          fi
+
+          cat > site/reportes.html <<HTML
           <!DOCTYPE html>
           <html lang="es">
-          <head><meta charset="utf-8"><title>Aegis Filter – Reportes de Calidad</title></head>
+          <head><meta charset="utf-8"><title>Aegis Filter – Reportes de pruebas y calidad</title></head>
           <body>
-            <h1>Aegis Filter – Reportes de Calidad</h1>
+            <h1>Reportes de pruebas y calidad</h1>
+            <p>Índice de evidencias generadas automáticamente por el pipeline de CI para la misma revisión del código.</p>
             <ul>
               <li><a href="coverage/index.html">Cobertura de pruebas (PHPUnit)</a></li>
               <li><a href="mutation/infection.html">Mutation Testing (Infection)</a></li>
               <li><a href="semgrep/semgrep.html">Semgrep (SAST)</a></li>
-              <!-- Snyk (dependencias): oculto hasta configurar el secret SNYK_TOKEN (ver Notas al final de ci.yml), de lo contrario el job se omite y este link da 404. -->
-              <!-- <li><a href="snyk/snyk.json">Snyk (dependencias)</a></li> -->
+              ${SNYK_LINK}
               <li><a href="https://sonarcloud.io/project/overview?id=aegisfilter-techhub">SonarCloud (dashboard externo)</a></li>
+            </ul>
+            <p><a href="index.html">&larr; Volver al inicio</a></p>
+          </body>
+          </html>
+          HTML
+
+          cat > site/index.html <<'HTML'
+          <!DOCTYPE html>
+          <html lang="es">
+          <head><meta charset="utf-8"><title>Aegis Filter – Entrega Documental</title></head>
+          <body>
+            <h1>Aegis Filter – Entrega Documental</h1>
+            <p>Sitio de evidencias del proyecto <strong>Aegis Filter</strong>, sistema antispam integrado en el simulador de foro Tech Hub.</p>
+
+            <h2>Formatos FD</h2>
+            <ul>
+              <li><a href="docs/FD01-Informe-Factibilidad.pdf">FD01 - Informe de Factibilidad</a></li>
+              <li><a href="docs/FD02-Informe-Vision.pdf">FD02 - Informe de Visión de Producto</a></li>
+              <li><a href="docs/FD03-Informe-SRS.pdf">FD03 - Informe de Especificación de Requerimientos</a></li>
+              <li><a href="docs/FD04-Informe-SAD.pdf">FD04 - Informe de Arquitectura</a></li>
+              <li><a href="docs/FD05-Informe-ProyectoFinal.pdf">FD05 - Informe de Proyecto</a></li>
+              <li><a href="docs/FD06-Propuesta-Proyecto.pdf">FD06 - Propuesta de Proyecto</a></li>
+            </ul>
+
+            <h2>Anexos</h2>
+            <ul>
+              <li><a href="docs/Diccionario-de-Datos.pdf">Diccionario de Datos</a></li>
+              <li><a href="docs/Estandar-de-Programacion.pdf">Estándar de Programación</a></li>
+              <li><a href="docs/presentacion.pdf">Presentación</a></li>
+            </ul>
+
+            <h2>Evidencias Publicadas</h2>
+            <ul>
+              <li><a href="reportes.html">Reportes de pruebas y calidad</a></li>
+            </ul>
+
+            <h2>Enlaces Principales</h2>
+            <ul>
+              <li>Repositorio: <a href="https://github.com/UPT-FAING-EPIS/proyecto-si784-2026-i-u3-antispam_u3">https://github.com/UPT-FAING-EPIS/proyecto-si784-2026-i-u3-antispam_u3</a></li>
+              <li>GitHub Pages: <a href="https://upt-faing-epis.github.io/proyecto-si784-2026-i-u3-antispam_u3/">https://upt-faing-epis.github.io/proyecto-si784-2026-i-u3-antispam_u3/</a></li>
             </ul>
           </body>
           </html>
