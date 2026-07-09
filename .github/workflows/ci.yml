@@ -214,6 +214,10 @@ jobs:
           semgrep scan --config=auto --sarif --output=semgrep.sarif . || true
           semgrep scan --config=auto --json --output=semgrep.json . || true
 
+      - name: "🎨 Generar reporte HTML de Semgrep"
+        if: always()
+        run: python3 .github/scripts/semgrep_report.py semgrep.json semgrep.html
+
       - name: "📤 Anotaciones en GH Actions (SARIF)"
         uses: github/codeql-action/upload-sarif@641a925cfafe92d0fdf8b239ba4053e3f8d99d6d # v3
         if: always()
@@ -229,6 +233,7 @@ jobs:
           path: |
             semgrep.sarif
             semgrep.json
+            semgrep.html
           retention-days: 14
 
   # ════════════════════════════════════════════════════
@@ -315,7 +320,7 @@ jobs:
             <ul>
               <li><a href="coverage/index.html">Cobertura de pruebas (PHPUnit)</a></li>
               <li><a href="mutation/infection.html">Mutation Testing (Infection)</a></li>
-              <li><a href="semgrep/semgrep.json">Semgrep (SAST)</a></li>
+              <li><a href="semgrep/semgrep.html">Semgrep (SAST)</a></li>
               <li><a href="snyk/snyk.json">Snyk (dependencias)</a></li>
               <li><a href="https://sonarcloud.io/project/overview?id=aegisfilter-techhub">SonarCloud (dashboard externo)</a></li>
             </ul>
