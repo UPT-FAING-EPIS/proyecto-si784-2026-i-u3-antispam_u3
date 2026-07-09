@@ -31,10 +31,10 @@ jobs:
     name: "🧪 PHPUnit + Cobertura"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: "🐘 Setup PHP ${{ env.PHP_VERSION }}"
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@b604ade2a87db23f8871b7182e69ec5e75effb45 # v2
         with:
           php-version: ${{ env.PHP_VERSION }}
           extensions: mbstring, xml, bcmath, sqlite3, zip, gd
@@ -42,7 +42,7 @@ jobs:
           tools: composer:v2
 
       - name: "📦 Cache Composer"
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: src/vendor
           key: composer-${{ hashFiles('src/composer.lock') }}
@@ -85,7 +85,7 @@ jobs:
           ' >> "$GITHUB_STEP_SUMMARY"
 
       - name: "📤 Subir artefactos de pruebas"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: test-reports
@@ -103,10 +103,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: "🐘 Setup PHP ${{ env.PHP_VERSION }}"
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@b604ade2a87db23f8871b7182e69ec5e75effb45 # v2
         with:
           php-version: ${{ env.PHP_VERSION }}
           extensions: mbstring, xml, bcmath, sqlite3, zip, gd
@@ -114,7 +114,7 @@ jobs:
           tools: composer:v2
 
       - name: "📦 Cache Composer"
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: src/vendor
           key: composer-${{ hashFiles('src/composer.lock') }}
@@ -151,7 +151,7 @@ jobs:
           fi
 
       - name: "📤 Subir reporte de mutación"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: mutation-report
@@ -168,18 +168,18 @@ jobs:
     runs-on: ubuntu-latest
     needs: test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
 
       - name: "📥 Descargar reportes de pruebas"
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: test-reports
           path: src/
 
       - name: "☁️ SonarCloud Scan"
-        uses: SonarSource/sonarqube-scan-action@v5.0.0
+        uses: SonarSource/sonarqube-scan-action@0303d6b62e310685c0e34d0b9cde218036885c4d # v5.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -204,7 +204,7 @@ jobs:
     name: "🔍 Semgrep"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: "🐍 Instalar Semgrep"
         run: pip install semgrep
@@ -215,14 +215,14 @@ jobs:
           semgrep scan --config=auto --json --output=semgrep.json . || true
 
       - name: "📤 Anotaciones en GH Actions (SARIF)"
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@641a925cfafe92d0fdf8b239ba4053e3f8d99d6d # v3
         if: always()
         with:
           sarif_file: semgrep.sarif
           category: semgrep
 
       - name: "📤 Subir reporte de Semgrep"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: semgrep-report
@@ -240,7 +240,7 @@ jobs:
     name: "🛡️ Snyk"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: "🛡️ Snyk – Análisis de vulnerabilidades"
         working-directory: ./src
@@ -255,7 +255,7 @@ jobs:
           snyk test --severity-threshold=high --json-file-output=../snyk.json || true
 
       - name: "📤 Subir reporte de Snyk"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         continue-on-error: true
         with:
@@ -276,25 +276,25 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: "📥 Descargar reportes de pruebas"
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: test-reports
           path: site/coverage-raw
 
       - name: "📥 Descargar reporte de mutación"
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: mutation-report
           path: site/mutation
 
       - name: "📥 Descargar reporte de Semgrep"
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: semgrep-report
           path: site/semgrep
 
       - name: "📥 Descargar reporte de Snyk (si corrió)"
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         continue-on-error: true
         with:
           name: snyk-report
@@ -324,13 +324,13 @@ jobs:
           HTML
 
       - name: "📦 Empaquetar artifact de Pages"
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
           path: site
 
       - name: "🚀 Desplegar a GitHub Pages"
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
 
   # ════════════════════════════════════════════════════
   # 7) Build de la imagen Docker (solo en main)
@@ -341,7 +341,7 @@ jobs:
     needs: [test]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: "✅ Resumen del pipeline"
         run: |
